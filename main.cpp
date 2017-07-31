@@ -24,7 +24,9 @@ using std::max;
 
 // getCoords function calculates the nodal and cell center values of the coordinates
 
-void getCoords(int nx, int ny, double spacing, vector<double> &x_coord, vector<double> &y_coord, vector<double> &x_cellcoord, vector<double> &y_cellcoord)
+void getCoords(int nx, int ny, double spacing, 
+vector<double> &x_coord, vector<double> &y_coord, 
+vector<double> &x_cellcoord, vector<double> &y_cellcoord)
 {
 
 	x_cellcoord.resize(nx+2);
@@ -242,7 +244,8 @@ void writeOutput(vector<Point> &polygon, int nx, int ny, double s, vector<double
 	bool isOutsideBB=false;
 	int isInsidePolygon=0;
 
-	// Loop through the cell coordinates in x and y directions and determine the location of each cell coordinate with respect to the polygon.
+	// Loop through the cell coordinates in x and y directions and determine the 
+	// location of each cell coordinate with respect to the polygon.
 	// The cells are marked in following manner:
 	// Completely inside the polygon: I
 	// Intersecting the polygon segments: X
@@ -257,7 +260,8 @@ void writeOutput(vector<Point> &polygon, int nx, int ny, double s, vector<double
 			Point p;
 			p.setvalues(xcellcoord[i],ycellcoord[j]);
 
-			// First test if the coordinate is outside the bounding box. If not, then check if the point is inside or on the polygon.
+			// First test if the coordinate is outside the bounding box. 
+			//If not, then check if the point is inside or on the polygon.
 
 			isOutsideBB = isOutsideBoundingBox(xcellcoord[i], ycellcoord[j], minPoint, maxPoint);
 
