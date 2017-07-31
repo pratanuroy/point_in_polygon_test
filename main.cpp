@@ -7,7 +7,7 @@
 //
 //  Discussion:
 //
-// 	A rectangular two-dimensional domain is populated by a Cartesian mesh with identical spacing in the X
+//    A rectangular two-dimensional domain is populated by a Cartesian mesh with identical spacing in the X
 //    and Y directions. The left bottom corner of the domain is located at (0.0, 0.0). An arbitrary shaped
 //    polygon described as a sequence of vertices ordered in anti-clockwise direction is overlaid on this
 //    Cartesian mesh. The polygon is completely contained in the rectangular domain. This program find the
@@ -212,11 +212,7 @@ int checkPointInPolygon(const Point& p, const vector<Point>& polygon) {
 					return ONSEGMENT;
 				else {
 					// Exception case when point is colinear but not on segment
-					// for example:
-					//					   k      w
-					//               /        \
-					//           *  ************
-					// The colinear segment is worth nothing if k and w have the same
+					// The colinear segment is worth nothing if they have the same
 					// vertical direction
 
 					int k = (((i - 1) >= 0) ? // Negative wrap-around
