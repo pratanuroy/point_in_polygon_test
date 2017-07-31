@@ -8,9 +8,9 @@
 //  Discussion:
 //
 // 	A rectangular two-dimensional domain is populated by a Cartesian mesh with identical spacing in the X
-//		and Y directions. The left bottom corner of the domain is located at (0.0, 0.0). An arbitrary shaped
-//		polygon described as a sequence of vertices ordered in anti-clockwise direction is overlaid on this
-//		Cartesian mesh. The polygon is completely contained in the rectangular domain. This program find the
+//    and Y directions. The left bottom corner of the domain is located at (0.0, 0.0). An arbitrary shaped
+//    polygon described as a sequence of vertices ordered in anti-clockwise direction is overlaid on this
+//    Cartesian mesh. The polygon is completely contained in the rectangular domain. This program find the
 //    location of the points with respect to the polygon and mark the cells of the Cartesian mesh with a 
 //    location attribute described in the following manner.
 //		- Completely inside the polygon: I
