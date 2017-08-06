@@ -19,7 +19,7 @@
 //
 //  Modified:
 //
-//    July 31, 2017
+//    August 5, 2017
 //
 //  Author:
 //
@@ -41,7 +41,7 @@ using std::endl;
 using std::min;
 using std::max;
 
-#define DEBUG 1
+#define DEBUG 0
 #define ONSEGMENT 999
 
 #define TOL 1e-8
@@ -50,12 +50,6 @@ using std::max;
 #define INSIDE 2
 #define OUTSIDE 3
 
-// The intersectionTest function returns true if line p1p2 intersects with line p3p4
-
-bool intersectionTest(const Point& p1, const Point& p2,
-                      const Point& p3, const Point& p4);
-int orientation(const Point& p1, const Point& p2, const Point& p3) ;
-bool onSegment(const Point& p1, const Point& p2, const Point& q) ;
 
 // getCoords function calculates the nodal and cell center values of the coordinates
 
@@ -196,9 +190,10 @@ bool intersectionTest(const Point& p1, const Point& p2,
     return false;
 }
 
-// Liang-Barsky function for line clipping
+// Liang-Barsky function for line clipping algorithm
 // This function inputs 4 edges of a rectangular box, and 2 points of a line (outputs a boolean value to say whether the line is clipped or not).
-//
+// https://en.wikipedia.org/wiki/Liang%E2%80%93Barsky_algorithm
+
 bool LiangBarsky(double edgeLeft, double edgeRight, double edgeBottom, double edgeTop,   // Define the x/y clipping values for the border.
                  double x0src, double y0src, double x1src, double y1src)                 // Define the start and end points of the line.
 {
@@ -235,7 +230,7 @@ bool LiangBarsky(double edgeLeft, double edgeRight, double edgeBottom, double ed
 
 int checkLineIntersection(Point& p_lb, Point& p_lu, Point& p_rb, Point& p_ru, vector<Point>& polygon)
 {
-    bool check = 0;
+    bool checkIntersection = 0;
     int cellFlag = 0;
     int i = 0;
     int j = i+1;
@@ -251,32 +246,32 @@ int checkLineIntersection(Point& p_lb, Point& p_lu, Point& p_rb, Point& p_ru, ve
         double x1src = polygon[j].X;
         double y1src = polygon[j].Y;
         
-        check = LiangBarsky (edgeLeft, edgeRight, edgeBottom, edgeTop,x0src, y0src, x1src, y1src);
+        checkIntersection = LiangBarsky (edgeLeft, edgeRight, edgeBottom, edgeTop,x0src, y0src, x1src, y1src);
         
-        //if(check) return check;
-        if(check) {cellFlag = INTERSECTION; return cellFlag;}
+        if(checkIntersection) {cellFlag = INTERSECTION; return cellFlag;}
         
         i = ((i + 1) % polygon.size());
         j = ((j + 1) % polygon.size());
     }while(i!=0);
     
+    // Calculate cell center and check if it lies inside or outside the polygon
     Point p_cent;
     p_cent.X = (p_lu.X+p_ru.X+p_lb.X+p_rb.X)/4.0;
     p_cent.Y = (p_lu.Y+p_ru.Y+p_lb.Y+p_rb.Y)/4.0;
-    double inf = 10000.0;
+    double inf = 1000000.0;
     Point PtoInfty(inf , p_cent.Y);
     int intersectionsCount = 0;
     i = 0; j = i + 1;
     
-    if(!check){
+    if(!checkIntersection){
         do{
             if (intersectionTest(p_cent, PtoInfty, polygon[i], polygon[j]) == true) {
                 ++intersectionsCount;
                 if (orientation(polygon[i], polygon[j], p_cent) == 0) { // Colinear
                     if (onSegment(polygon[i], polygon[j], p_cent) == true){
-                        //if ((p.X == polygon[i].X && p.Y == polygon[i].Y) || (p.X == polygon[j].X && p.Y == polygon[j].Y))
+                        
                         cellFlag = ONSEGMENT;
-                        //flag1 = 1;
+                     
                     }
                     else {
                         // Exception case when point is colinear but not on segment
@@ -303,7 +298,6 @@ int checkLineIntersection(Point& p_lb, Point& p_lu, Point& p_rb, Point& p_ru, ve
     }
     
     return cellFlag;
-    //return check;
 }
 
 
@@ -345,43 +339,31 @@ void writeOutput(vector<Point> &polygon, int nx, int ny, double s, vector<double
     
     
     for(int j=ny; j>0; j--)
-        //for(int j=1; j<ny+1; ++j)
     {
         for(int i=1; i<nx+1; i++)
         {
-            Point p;
-            p.setvalues(xcellcoord[i],ycellcoord[j]);
-            
-            vector<Point> cellPoints;
-            
-            //Point p_lb, p_rb, p_lu, p_ru;
-            //std::string flag_lb, flag_rb, flag_lu, flag_ru;
+            // Get four vertices of cell (i,j)
             
             p_lb.setvalues(xcoord[i-1],ycoord[j-1]);
             p_rb.setvalues(xcoord[i],ycoord[j-1]);
             p_lu.setvalues(xcoord[i-1],ycoord[j]);
             p_ru.setvalues(xcoord[i],ycoord[j]);
             
-            
             // First test if the coordinate is outside the bounding box.
             //If not, then check if the point is inside or on the polygon.
             
-            //isOutsideBB = isOutsideBoundingBox(xcellcoord[i], ycellcoord[j], minPoint, maxPoint);
             isOutsideBB = isOutsideBoundingBox(xcellcoord[i], ycellcoord[j], minPoint, maxPoint);
             
             if(isOutsideBB){cout <<"O";}
             
-            if (!isOutsideBB)
+            else
             {
+                int cellFlag = checkLineIntersection(p_lb, p_lu, p_rb, p_ru, polygon);
                 
-                int collide = checkLineIntersection(p_lb, p_lu, p_rb, p_ru, polygon);
-                
-                if(collide == INTERSECTION) {cout<< "X";}
-                else if(collide == INSIDE) {cout<< "I";}
+                if(cellFlag == INTERSECTION) {cout<< "X";}
+                else if(cellFlag == INSIDE) {cout<< "I";}
                 else {cout<< "O";}
-                
             }
-            
         }
         cout<<endl;
         
