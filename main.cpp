@@ -41,15 +41,27 @@ using std::endl;
 using std::min;
 using std::max;
 
-#define DEBUG 0
+#define DEBUG 1
 #define ONSEGMENT 999
+
 #define TOL 1e-8
+#define INTERSECTION 1 
+#define NO_INTERSECTION 0
+#define INSIDE 2
+#define OUTSIDE 3
+
+// The intersectionTest function returns true if line p1p2 intersects with line p3p4
+
+bool intersectionTest(const Point& p1, const Point& p2,
+                const Point& p3, const Point& p4);
+int orientation(const Point& p1, const Point& p2, const Point& p3) ;
+bool onSegment(const Point& p1, const Point& p2, const Point& q) ;
 
 // getCoords function calculates the nodal and cell center values of the coordinates
 
 void getCoords(int nx, int ny, double spacing, 
-vector<double> &x_coord, vector<double> &y_coord, 
-vector<double> &x_cellcoord, vector<double> &y_cellcoord)
+		vector<double> &x_coord, vector<double> &y_coord, 
+		vector<double> &x_cellcoord, vector<double> &y_cellcoord)
 {
 
 	x_cellcoord.resize(nx+2);
@@ -134,7 +146,7 @@ void getBoundingBox(vector<Point> &points, Point &minPoint, Point &maxPoint)
 // -1 if Counterclockwise
 // Theory:
 // Slope of segment p1,p2: s12= (p2.Y-p1.Y)/(p2.X - p1.X)
-// Slope of segment p1,p2: s23 = (p3.Y - p2.Y)/(p3.X - p2.X)
+// Slope of segment p2,p3: s23 = (p3.Y - p2.Y)/(p3.X - p2.X)
 // Counterclockwise => s12 < s23
 // Clockwise => s12  > s23
 // Colinear => s12 = s23
@@ -184,59 +196,116 @@ bool intersectionTest(const Point& p1, const Point& p2,
 	return false;
 }
 
+// Liang-Barsky function for line clipping
+// This function inputs 4 edges of a rectangular box, and 2 points of a line (outputs a boolean value to say whether the line is clipped or not).
+//
+bool LiangBarsky(double edgeLeft, double edgeRight, double edgeBottom, double edgeTop,   // Define the x/y clipping values for the border.
+                  double x0src, double y0src, double x1src, double y1src)                 // Define the start and end points of the line.
+{
+    
+    double t0 = 0.0;    double t1 = 1.0;
+    double xdelta = x1src-x0src;
+    double ydelta = y1src-y0src;
+    double p,q,r;
+
+    for(int edge=0; edge<4; edge++) {   // Traverse through left, right, bottom, top edges.
+        if (edge==0) {  p = -xdelta;    q = -(edgeLeft-x0src);  }
+        if (edge==1) {  p = xdelta;     q =  (edgeRight-x0src); }
+        if (edge==2) {  p = -ydelta;    q = -(edgeBottom-y0src);}
+        if (edge==3) {  p = ydelta;     q =  (edgeTop-y0src);   }   
+        r = q/p;
+        if(p==0.0 && q<0.0) return false;   // line is outside
+
+        if(p<0.0) {
+            if(r>t1) return false;         // line is outside
+            else if(r>t0) t0=r;            // Line is clipped!
+        } else if(p>0.0) {
+            if(r<t0) return false;      // line is outside
+            else if(r<t1) t1=r;         // Line is clipped!
+        }   
+    }
+
+    return true; // Line intersects the box
+}
+
 // This function returns ONSEGMENT if the point is on the polygon segment, 1 if the point is
 // completely inside the polygon, and 0 if the point is completely outside the polygon
 // The concepts of orientation and intersection can be found in:
 // http://www.dcs.gla.ac.uk/~pat/52233/slides/Geometry1x1.pdf
 
-int checkPointInPolygon(const Point& p, const vector<Point>& polygon) {
+int checkLineIntersection(Point& p_lb, Point& p_lu, Point& p_rb, Point& p_ru, vector<Point>& polygon)
+{
+ bool check = 0;
+ int cellFlag = 0; 
+  int i = 0;
+  int j = i+1;
 
-	if (polygon.size() < 3)
-		return 0; // As the minimum number of vertiecs should be 3 to construct a polygon
+ do{
+ double edgeLeft = p_lb.X;
+ double edgeRight = p_rb.X;
+ double edgeBottom = p_lb.Y;
+ double edgeTop = p_lu.Y;
 
-	// Constructing a horizontal line of inifinite length
-	double inf = 10000.0;
-	Point PtoInfty(inf , p.Y);
+ double x0src = polygon[i].X;
+ double y0src = polygon[i].Y;
+ double x1src = polygon[j].X;
+ double y1src = polygon[j].Y;
+ 
+ check = LiangBarsky (edgeLeft, edgeRight, edgeBottom, edgeTop,x0src, y0src, x1src, y1src);
 
-	int intersectionsCount = 0;
-	int i = 0, j = i + 1;
+ //if(check) return check;
+ if(check) {cellFlag = INTERSECTION; return cellFlag;}
 
-	do {
+                i = ((i + 1) % polygon.size());
+                j = ((j + 1) % polygon.size());
+ }while(i!=0);
+ 
+        Point p_cent;
+        p_cent.X = (p_lu.X+p_ru.X+p_lb.X+p_rb.X)/4.0; 
+        p_cent.Y = (p_lu.Y+p_ru.Y+p_lb.Y+p_rb.Y)/4.0; 
+        double inf = 10000.0;
+        Point PtoInfty(inf , p_cent.Y);
+        int intersectionsCount = 0; 
+        i = 0; j = i + 1; 
+     
+        if(!check){
+        do{  
+                if (intersectionTest(p_cent, PtoInfty, polygon[i], polygon[j]) == true) {
+                        ++intersectionsCount;
+                        if (orientation(polygon[i], polygon[j], p_cent) == 0) { // Colinear
+                                if (onSegment(polygon[i], polygon[j], p_cent) == true){
+                                        //if ((p.X == polygon[i].X && p.Y == polygon[i].Y) || (p.X == polygon[j].X && p.Y == polygon[j].Y)) 
+                                        cellFlag = ONSEGMENT;
+                                        //flag1 = 1; 
+                                }    
+                                else {
+                                        // Exception case when point is colinear but not on segment
+                                        // The colinear segment is worth nothing if they have the same
+                                        // vertical direction
 
-		if (intersectionTest(p, PtoInfty, polygon[i], polygon[j]) == true) {
+                                        int k = (((i - 1) >= 0) ? // Negative wrap-around
+                                                        (i - 1) % static_cast<int>(polygon.size()):static_cast<int>(polygon.size()) + (i - 1)); 
 
-			++intersectionsCount;
+                                        int w = ((j + 1) % polygon.size());
 
-			if (orientation(polygon[i], polygon[j], p) == 0) { // Colinear
-				if (onSegment(polygon[i], polygon[j], p) == true)
-					return ONSEGMENT;
-				else {
-					// Exception case when point is colinear but not on segment
-					// The colinear segment is worth nothing if they have the same
-					// vertical direction
+                                        if ((polygon[k].Y <= polygon[i].Y && polygon[w].Y <= polygon[j].Y)
+                                                        || (polygon[k].Y >= polygon[i].Y && polygon[w].Y >= polygon[j].Y))
+                                                --intersectionsCount;
+                                }    
+                        }    
+                }    
+                i = ((i + 1) % polygon.size());
+                j = ((j + 1) % polygon.size());
 
-					int k = (((i - 1) >= 0) ? // Negative wrap-around
-							(i - 1) % static_cast<int>(polygon.size()):static_cast<int>(polygon.size()) + (i - 1));
+        } while (i != 0);
+          if(intersectionsCount % 2 != 0) cellFlag = INSIDE;
+          else cellFlag = OUTSIDE;
+        }    
 
-					int w = ((j + 1) % polygon.size());
-
-					if ((polygon[k].Y <= polygon[i].Y && polygon[w].Y <= polygon[j].Y)
-							|| (polygon[k].Y >= polygon[i].Y && polygon[w].Y >= polygon[j].Y))
-						--intersectionsCount;
-				}
-			}
-		}
-
-		i = ((i + 1) % polygon.size());
-		j = ((j + 1) % polygon.size());
-
-	} while (i != 0);
-
-	// Return 1 if intersectionsCount is odd, otherwise return 0
-	if (intersectionsCount % 2 != 0) return 1;
-	else return 0;
-
+  return cellFlag;
+ //return check;
 }
+
 
 void writeOutput(vector<Point> &polygon, int nx, int ny, double s, vector<double> &xcoord,vector<double> &ycoord,
 		vector<double> &xcellcoord, vector<double> &ycellcoord, Point &minPoint, Point  &maxPoint)
@@ -263,6 +332,8 @@ void writeOutput(vector<Point> &polygon, int nx, int ny, double s, vector<double
 	bool isOutsideBB=false;
 	int isInsidePolygon=0;
 
+	Point p_lb, p_rb, p_lu, p_ru;
+
 	// Loop through the cell coordinates in x and y directions and determine the 
 	// location of each cell coordinate with respect to the polygon.
 	// The cells are marked in following manner:
@@ -272,28 +343,49 @@ void writeOutput(vector<Point> &polygon, int nx, int ny, double s, vector<double
 	// For each case there are ny lines in the output and each line contains nx entries,
 	// where each entry represents the location attribute of a cell.
 
+
 	for(int j=ny; j>0; j--)
+	//for(int j=1; j<ny+1; ++j)
 	{
 		for(int i=1; i<nx+1; i++)
 		{
 			Point p;
 			p.setvalues(xcellcoord[i],ycellcoord[j]);
 
-			// First test if the coordinate is outside the bounding box. 
+			vector<Point> cellPoints;
+
+			//Point p_lb, p_rb, p_lu, p_ru;
+			//std::string flag_lb, flag_rb, flag_lu, flag_ru;
+
+			p_lb.setvalues(xcoord[i-1],ycoord[j-1]);
+			p_rb.setvalues(xcoord[i],ycoord[j-1]);
+			p_lu.setvalues(xcoord[i-1],ycoord[j]);
+			p_ru.setvalues(xcoord[i],ycoord[j]);
+                    
+
+			// First test if the coordinate is outside the bounding box.
 			//If not, then check if the point is inside or on the polygon.
 
+			//isOutsideBB = isOutsideBoundingBox(xcellcoord[i], ycellcoord[j], minPoint, maxPoint);
 			isOutsideBB = isOutsideBoundingBox(xcellcoord[i], ycellcoord[j], minPoint, maxPoint);
 
-			if (!isOutsideBB) isInsidePolygon = checkPointInPolygon( p, polygon);
-
 			if(isOutsideBB){cout <<"O";}
-			else if (isInsidePolygon == ONSEGMENT){cout << "X";}
-			else if (isInsidePolygon){cout <<"I";}
-			else {cout << "O";}
 
+			if (!isOutsideBB) 
+			{
+                
+                                int collide = checkLineIntersection(p_lb, p_lu, p_rb, p_ru, polygon);
+                         
+                                if(collide == INTERSECTION) {cout<< "X";} 
+                                else if(collide == INSIDE) {cout<< "I";}
+                                else {cout<< "O";}
+     
 		}
-		cout<<endl;
+
 	}
+	cout<<endl;
+        
+}
 
 }
 
