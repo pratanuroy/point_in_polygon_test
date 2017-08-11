@@ -96,8 +96,11 @@ void getCoords(int nx, int ny, double spacing,
 }
 
 // isOutsideBoundingBox determines if a point is outside the bounding box of polygon
-bool isOutsideBoundingBox(double xvalue, double yvalue, const Point &minPoint, const Point &maxPoint)
+bool isOutsideBoundingBox(const Point &point, const Point &minPoint, const Point &maxPoint)
 {
+    double xvalue = point.X;
+    double yvalue = point.Y;
+    
     if (DEBUG == 2) cout << xvalue << " " << yvalue << " " << minPoint.X<<" "<<minPoint.Y<< " "<< maxPoint.X<<" "<<maxPoint.Y<<" ";
     
     if(xvalue < minPoint.X || yvalue < minPoint.Y || xvalue > maxPoint.X || yvalue > maxPoint.Y)
@@ -349,10 +352,13 @@ void writeOutput(vector<Point> &polygon, int nx, int ny, double s, vector<double
             p_lu.setvalues(xcoord[i-1],ycoord[j]);
             p_ru.setvalues(xcoord[i],ycoord[j]);
             
-            // First test if the coordinate is outside the bounding box.
-            //If not, then check if the point is inside or on the polygon.
+            // First test if the cell is completely outside the bounding box.
+            //If not, then check if the cell is inside or outside or intersected by the polygon.
             
-            isOutsideBB = isOutsideBoundingBox(xcellcoord[i], ycellcoord[j], minPoint, maxPoint);
+            isOutsideBB = isOutsideBoundingBox(p_lb, minPoint, maxPoint) &&
+                          isOutsideBoundingBox(p_rb, minPoint, maxPoint) &&
+                          isOutsideBoundingBox(p_lu, minPoint, maxPoint) &&
+                          isOutsideBoundingBox(p_ru, minPoint, maxPoint);
             
             if(isOutsideBB){cout <<"O";}
             
